@@ -60,7 +60,7 @@ class Spaz(bs.Actor):
     """The 'spaz' bs.Node."""
 
     points_mult = 1
-    curse_time: float | None = 5.0
+    curse_time: float | None = 8.0
     default_bomb_count = 1
     default_bomb_type = 'normal'
     default_boxing_gloves = False
@@ -863,11 +863,44 @@ class Spaz(bs.Actor):
                                 ),
                             )
                     self.node.curse_death_time = 0
+
+                # Light
+                light = bs.newnode(
+                    'light',
+                    attrs={
+                        'position': self.node.position,
+                        'radius': 0.2,
+                        'color': (0, 1, 0),
+                        'volume_intensity_scale': 1.0,
+                    },
+                )
+                # Connect to Spaz
+                self.node.connectattr('torso_position', light, 'position')
+
+                # Animation and deletion
+                bs.animate(light, 'intensity', {0: 0.8, 0.5: 0})
+                bs.timer(0.5, light.delete)
+
+                # Emit some cool looking sparks when the shield dies.
+                npos = self.node.position
+                bs.emitfx(
+                    position=self.node.position,
+                    velocity=self.node.velocity,
+                    count=6,
+                    scale=1.2,
+                    spread=0.8,
+                    chunk_type='spark',
+                )
+
                 self.hitpoints = self.hitpoints_max
                 self._flash_billboard(PowerupBoxFactory.get().tex_health)
                 self.node.hurt = 0
                 self._last_hit_time = None
                 self._num_times_hit = 0
+
+                # Thaw frozen spazzes
+                if self.frozen:
+                    self.handlemessage(bs.ThawMessage())
 
             self.node.handlemessage('flash')
             if msg.sourcenode:
