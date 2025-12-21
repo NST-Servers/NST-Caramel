@@ -62,6 +62,7 @@ class TeamGameActivity[PlayerT: bascenev1.Player, TeamT: bascenev1.Team](
         # pylint: disable=cyclic-import
         from bascenev1._coopsession import CoopSession
         from bascenev1lib.actor.controlsguide import ControlsGuide
+        from nst.activity_texts import InfoText, NotifText
 
         super().on_transition_in()
 
@@ -85,6 +86,9 @@ class TeamGameActivity[PlayerT: bascenev1.Player, TeamT: bascenev1.Team](
                     bright=True,
                 ).autoretain()
                 setattr(self.session, attrname, True)
+
+        InfoText().autoretain()
+        NotifText().autoretain()
 
     @override
     def on_begin(self) -> None:
