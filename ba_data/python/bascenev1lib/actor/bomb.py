@@ -237,6 +237,24 @@ class BombFactory:
             actions=('message', 'our_node', 'at_connect', ImpactMessage()),
         )
 
+        # New action for land-mine-on-land-mine collision
+        self.land_mine_blast_material.add_actions(
+            conditions=(
+                ('we_are_older_than', 200),
+                'and',
+                ('they_are_older_than', 200),
+                'and',
+                ('eval_colliding',),
+                'and',
+                (
+                    ('they_have_material', self.land_mine_blast_material),
+                    'and',
+                    ('they_dont_have_material', self.land_mine_no_explode_material),
+                ),
+            ),
+            actions=('message', 'our_node', 'at_connect', MineBeepMessage()),
+        )
+
         self.impact_blast_material = bs.Material()
         self.impact_blast_material.add_actions(
             conditions=(
@@ -316,6 +334,10 @@ class ArmMessage:
 
 class WarnMessage:
     """Tell an object to issue a warning sound."""
+
+
+class MineBeepMessage:
+    """Tells a land-mine to make a beep visual."""
 
 
 class ExplodeHitMessage:
@@ -1096,6 +1118,24 @@ class Bomb(bs.Actor):
         )
         factory.activate_sound.play(0.5, position=self.node.position)
 
+    def _handle_mine_beep(self) -> None:
+        """Handle a MineBeepMessage."""
+        if not self.node:
+            return
+        factory = BombFactory.get()
+        # Flash the texture similar to arming
+        intex = (factory.land_mine_lit_tex, factory.land_mine_tex)
+        beep_texture_sequence = bs.newnode(
+            'texture_sequence',
+            owner=self.node,
+            attrs={'rate': 30, 'input_textures': intex},
+        )
+        beep_texture_sequence.connectattr(
+            'output_texture', self.node, 'color_texture'
+        )
+        bs.timer(0.5, beep_texture_sequence.delete)  # Flash for 0.5 seconds
+        factory.activate_sound.play(0.5, position=self.node.position)
+
     def _handle_hit(self, msg: bs.HitMessage) -> None:
         ispunched = msg.srcnode and msg.srcnode.getnodetype() == 'spaz'
 
@@ -1104,27 +1144,46 @@ class Bomb(bs.Actor):
         if not self._exploded and (
             not ispunched or self.bomb_type in ['impact', 'land_mine']
         ):
-            # Also lets change the owner of the bomb to whoever is setting
-            # us off. (this way points for big chain reactions go to the
-            # person causing them).
-            source_player = msg.get_source_player(bs.Player)
-            if source_player is not None:
-                self._source_player = source_player
+            # If we are a land mine and we get hit by another land mine,
+            # don't explode; just beep.
+            if self.bomb_type == 'land_mine' and msg.hit_subtype == 'land_mine':
+                if self.node:
+                    factory = BombFactory.get()
+                    factory.activate_sound.play(
+                        0.5, position=self.node.position
+                    )
+                    intex = (factory.land_mine_lit_tex, factory.land_mine_tex)
+                    ts_node = bs.newnode(
+                        'texture_sequence',
+                        owner=self.node,
+                        attrs={'rate': 30, 'input_textures': intex},
+                    )
+                    ts_node.connectattr(
+                        'output_texture', self.node, 'color_texture'
+                    )
+                    bs.timer(0.5, ts_node.delete)
+            else:
+                # Also lets change the owner of the bomb to whoever is setting
+                # us off. (this way points for big chain reactions go to the
+                # person causing them).
+                source_player = msg.get_source_player(bs.Player)
+                if source_player is not None:
+                    self._source_player = source_player
 
-                # Also inherit the hit type (if a landmine sets off by a bomb,
-                # the credit should go to the mine)
-                # the exception is TNT.  TNT always gets credit.
-                # UPDATE (July 2020): not doing this anymore. Causes too much
-                # weird logic such as bombs acting like punches. Holler if
-                # anything is noticeably broken due to this.
-                # if self.bomb_type != 'tnt':
-                #     self.hit_type = msg.hit_type
-                #     self.hit_subtype = msg.hit_subtype
+                    # Also inherit the hit type (if a landmine sets off by a bomb,
+                    # the credit should go to the mine)
+                    # the exception is TNT.  TNT always gets credit.
+                    # UPDATE (July 2020): not doing this anymore. Causes too much
+                    # weird logic such as bombs acting like punches. Holler if
+                    # anything is noticeably broken due to this.
+                    # if self.bomb_type != 'tnt':
+                    #     self.hit_type = msg.hit_type
+                    #     self.hit_subtype = msg.hit_subtype
 
-            bs.timer(
-                0.1 + random.random() * 0.1,
-                bs.WeakCallStrict(self.handlemessage, ExplodeMessage()),
-            )
+                bs.timer(
+                    0.1 + random.random() * 0.1,
+                    bs.WeakCallStrict(self.handlemessage, ExplodeMessage()),
+                )
         assert self.node
         self.node.handlemessage(
             'impulse',
@@ -1172,6 +1231,8 @@ class Bomb(bs.Actor):
             self.arm()
         elif isinstance(msg, WarnMessage):
             self._handle_warn()
+        elif isinstance(msg, MineBeepMessage):
+            self._handle_mine_beep()
         else:
             super().handlemessage(msg)
 
