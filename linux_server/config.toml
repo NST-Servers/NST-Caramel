@@ -49,7 +49,7 @@ admins = ["pb-LV4FXxRcVEMWWQxBFERRVgNHRg==",]
 #
 # 43210 is the default and the only port that will show up in the
 # LAN browser tab.
-#port = 43210
+port = 55555
 
 # Max devices in the party. Note that this does *NOT* mean max
 # players. Any device in the party can have more than one player on
