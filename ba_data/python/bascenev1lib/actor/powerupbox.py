@@ -101,7 +101,9 @@ class PowerupBoxFactory:
         self.tex_land_mines = bs.gettexture('powerupLandMines')
         self.tex_curse = bs.gettexture('powerupCurse')
         self.health_powerup_sound = bs.getsound('healthPowerup')
+        self.health_powerup2_sound = bs.getsound('cashRegister2')
         self.powerup_sound = bs.getsound('powerup01')
+        self.powerup2_sound = bs.getsound('pop01')
         self.powerdown_sound = bs.getsound('powerdown01')
         self.drop_sound = bs.getsound('boxDrop')
 
@@ -276,6 +278,46 @@ class PowerupBox(bs.Actor):
         if self.node:
             self.node.flashing = True
 
+    def powerup_popup(self) -> None:
+        from bascenev1lib.actor.popuptext import PopupText
+
+        if self.poweruptype == 'triple_bombs':
+            text = bs.Lstr(resource='powerupBombNameText')
+            color = (1, 1, 0)
+        elif self.poweruptype == 'punch':
+            text = bs.Lstr(resource='powerupPunchNameText')
+            color = (1, 0.5, 0)
+        elif self.poweruptype == 'ice_bombs':
+            text = bs.Lstr(resource='powerupIceBombsNameText')
+            color = (0, 1, 1)
+        elif self.poweruptype == 'sticky_bombs':
+            text = bs.Lstr(resource='powerupStickyBombsNameText')
+            color = (0, 1, 0)
+        elif self.poweruptype == 'shield':
+            text = bs.Lstr(resource='powerupShieldNameText')
+            color = (1, 1, 1)
+        elif self.poweruptype == 'impact_bombs':
+            text = bs.Lstr(resource='powerupImpactBombsNameText')
+            color = (0.5, 0.5, 0.5)
+        elif self.poweruptype == 'health':
+            text = bs.Lstr(resource='powerupHealthNameText')
+            color = (1, 0, 0)
+        elif self.poweruptype == 'land_mines':
+            text = bs.Lstr(resource='powerupLandMinesNameText')
+            color = (0, 0.5, 0)
+        elif self.poweruptype == 'curse':
+            text = bs.Lstr(resource='powerupCurseNameText')
+            color = (0.2, 0, 0.2)
+        else:
+            return
+
+        PopupText(
+            text=text,
+            color=color,
+            scale=1.6,
+            position=self.node.position,
+        ).autoretain()
+
     @override
     def handlemessage(self, msg: Any) -> Any:
         assert not self.expired
@@ -285,11 +327,16 @@ class PowerupBox(bs.Actor):
             assert self.node
             if self.poweruptype == 'health':
                 factory.health_powerup_sound.play(
-                    3, position=self.node.position
+                    2, position=self.node.position
+                )
+                factory.health_powerup2_sound.play(
+                    1, position=self.node.position
                 )
 
-            factory.powerup_sound.play(3, position=self.node.position)
+            factory.powerup_sound.play(2, position=self.node.position)
+            factory.powerup2_sound.play(1, position=self.node.position)
             self._powersgiven = True
+            self.powerup_popup()
             self.handlemessage(bs.DieMessage())
 
         elif isinstance(msg, _TouchedMessage):
