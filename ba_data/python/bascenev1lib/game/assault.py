@@ -39,6 +39,11 @@ class Team(bs.Team[Player]):
         #: Current score.
         self.score = 0
 
+        #: Capture state for this team's base
+        self.capturing_players: list[Player] = []
+        self.capture_timer = 0.0
+        self.capture_counter: bs.Node | None = None
+        self.capture_sound: bs.Node | None = None
 
 # ba_meta export bascenev1.GameActivity
 class AssaultGame(bs.TeamGameActivity[Player, Team]):
@@ -75,6 +80,12 @@ class AssaultGame(bs.TeamGameActivity[Player, Team]):
             ],
             default=1.0,
         ),
+        bs.IntSetting(
+            'Capture Time',
+            min_value=1,
+            default=2,
+            increment=1,
+        ),
         bs.BoolSetting('Epic Mode', default=False),
     ]
 
@@ -86,7 +97,6 @@ class AssaultGame(bs.TeamGameActivity[Player, Team]):
     @override
     @classmethod
     def get_supported_maps(cls, sessiontype: type[bs.Session]) -> list[str]:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
         assert bs.app.classic is not None
         return bs.app.classic.getmaps('team_flag')
 
@@ -95,34 +105,33 @@ class AssaultGame(bs.TeamGameActivity[Player, Team]):
         self._scoreboard = Scoreboard()
         self._last_score_time = 0.0
         self._score_sound = bs.getsound('score')
+        self._ticking_sound = bs.getsound('ticking')
         self._base_region_materials: dict[int, bs.Material] = {}
         self._epic_mode = bool(settings['Epic Mode'])
         self._score_to_win = int(settings['Score to Win'])
         self._time_limit = float(settings['Time Limit'])
+        self._capture_time = int(settings['Capture Time'])
+
+        self._sound_volume = 0.5
 
         # Base class overrides
         self.slow_motion = self._epic_mode
-        self.default_music = (
-            bs.MusicType.EPIC if self._epic_mode else bs.MusicType.FORWARD_MARCH
-        )
+        self.default_music = bs.MusicType.EPIC if self._epic_mode else bs.MusicType.FORWARD_MARCH
 
     @override
     def get_instance_description(self) -> str | Sequence:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
         if self._score_to_win == 1:
-            return 'Touch the enemy flag.'
-        return 'Touch the enemy flag ${ARG1} times.', self._score_to_win
+            return 'Reach the enemy flag.'
+        return 'Reach the enemy flag ${ARG1} times.', self._score_to_win
 
     @override
     def get_instance_description_short(self) -> str | Sequence:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
         if self._score_to_win == 1:
-            return 'touch 1 flag'
-        return 'touch ${ARG1} flags', self._score_to_win
+            return 'reach 1 flag'
+        return 'reach ${ARG1} flags', self._score_to_win
 
     @override
     def create_team(self, sessionteam: bs.SessionTeam) -> Team:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
         shared = SharedObjects.get()
         base_pos = self.map.get_flag_position(sessionteam.id)
         bs.newnode(
@@ -140,6 +149,34 @@ class AssaultGame(bs.TeamGameActivity[Player, Team]):
         flag = Flag(touchable=False, position=base_pos, color=sessionteam.color)
         team = Team(base_pos=base_pos, flag=flag)
 
+        # Initialize capture timer for this team
+        team.capture_timer = self._capture_time
+
+        # Create capture counter text for this team
+        team.capture_counter = bs.newnode(
+            'text',
+            attrs={
+                'in_world': True,
+                'scale': 0.022,
+                'color': (1, 1, 0, 1),
+                'h_align': 'center',
+                'position': (base_pos[0], base_pos[1] + 1.3, base_pos[2]),
+                'text': ''
+            }
+        )
+
+        # Create capture sound for this team
+        team.capture_sound = bs.newnode(
+            'sound',
+            attrs={
+                'sound': self._ticking_sound,
+                'position': base_pos,
+                'positional': True,
+                'volume': 0.0,
+                'loop': True
+            }
+        )
+
         mat = self._base_region_materials[sessionteam.id] = bs.Material()
         mat.add_actions(
             conditions=('they_have_material', shared.player_material),
@@ -149,7 +186,12 @@ class AssaultGame(bs.TeamGameActivity[Player, Team]):
                 (
                     'call',
                     'at_connect',
-                    bs.CallStrict(self._handle_base_collide, team),
+                    bs.CallPartial(self._handle_base_connect, team),
+                ),
+                (
+                    'call',
+                    'at_disconnect',
+                    bs.CallPartial(self._handle_base_disconnect, team),
                 ),
             ),
         )
@@ -169,8 +211,6 @@ class AssaultGame(bs.TeamGameActivity[Player, Team]):
 
     @override
     def on_team_join(self, team: Team) -> None:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
-
         # Can't do this in create_team because the team's color/etc. have
         # not been wired up yet at that point.
         self._update_scoreboard()
@@ -181,13 +221,21 @@ class AssaultGame(bs.TeamGameActivity[Player, Team]):
         self.setup_standard_time_limit(self._time_limit)
         self.setup_standard_powerup_drops()
 
+        # Start capture timer update
+        self._update_timer = bs.Timer(0.1, bs.WeakCallPartial(self._update_capture_timer), repeat=True)
+
     @override
     def handlemessage(self, msg: Any) -> Any:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
-
         if isinstance(msg, bs.PlayerDiedMessage):
             super().handlemessage(msg)  # Augment standard.
-            self.respawn_player(msg.getplayer(Player))
+            player = msg.getplayer(Player)
+
+            # Reset capture state for the dead player
+            for team in self.teams:
+                if player in team.capturing_players:
+                    team.capturing_players.remove(player)
+
+            self.respawn_player(player)
         else:
             super().handlemessage(msg)
 
@@ -204,7 +252,7 @@ class AssaultGame(bs.TeamGameActivity[Player, Team]):
         bs.animate(light, 'intensity', {0: 0, 0.25: 2.0, 0.5: 0}, loop=True)
         bs.timer(length, light.delete)
 
-    def _handle_base_collide(self, team: Team) -> None:
+    def _handle_base_connect(self, team: Team) -> None:
         try:
             spaz = bs.getcollision().opposingnode.getdelegate(PlayerSpaz, True)
         except bs.NotFoundError:
@@ -218,72 +266,142 @@ class AssaultGame(bs.TeamGameActivity[Player, Team]):
         except bs.NotFoundError:
             return
 
-        # If its another team's player, they scored.
+        # If its another team's player, start capturing
         player_team = player.team
         if player_team is not team:
-            # Prevent multiple simultaneous scores.
-            if bs.time() != self._last_score_time:
-                self._last_score_time = bs.time()
-                self.stats.player_scored(player, 50, big_message=True)
-                self._score_sound.play()
-                self._flash_base(team)
+            if player not in team.capturing_players:
+                team.capturing_players.append(player)
 
-                # Move all players on the scoring team back to their start
-                # and add flashes of light so its noticeable.
-                for player in player_team.players:
-                    if player.is_alive():
-                        pos = player.node.position
-                        light = bs.newnode(
-                            'light',
-                            attrs={
-                                'position': pos,
-                                'color': player_team.color,
-                                'height_attenuated': False,
-                                'radius': 0.4,
-                            },
-                        )
-                        bs.timer(0.5, light.delete)
-                        bs.animate(light, 'intensity', {0: 0, 0.1: 1.0, 0.5: 0})
+    def _handle_base_disconnect(self, team: Team) -> None:
+        try:
+            spaz = bs.getcollision().opposingnode.getdelegate(PlayerSpaz, True)
+        except bs.NotFoundError:
+            return
 
-                        new_pos = self.map.get_start_position(player_team.id)
-                        light = bs.newnode(
-                            'light',
-                            attrs={
-                                'position': new_pos,
-                                'color': player_team.color,
-                                'radius': 0.4,
-                                'height_attenuated': False,
-                            },
-                        )
-                        bs.timer(0.5, light.delete)
-                        bs.animate(light, 'intensity', {0: 0, 0.1: 1.0, 0.5: 0})
-                        if player.actor:
-                            random_num = random.uniform(0, 360)
+        try:
+            player = spaz.getplayer(Player, True)
+        except bs.NotFoundError:
+            return
 
-                            # Slightly hacky workaround: normally,
-                            # teleporting back to base with a sticky
-                            # bomb stuck to you gives a crazy whiplash
-                            # rubber-band effect. Running the teleport
-                            # twice in a row seems to suppress that
-                            # though. Would be better to fix this at a
-                            # lower level, but this works for now.
-                            self._teleport(player, new_pos, random_num)
-                            bs.timer(
-                                0.01,
-                                bs.CallStrict(
-                                    self._teleport, player, new_pos, random_num
-                                ),
-                            )
+        if player in team.capturing_players:
+            team.capturing_players.remove(player)
 
-                # Have teammates celebrate.
-                for player in player_team.players:
+    def _reset_team_capture(self, team: Team) -> None:
+        """Reset the capture state for a specific team."""
+        team.capturing_players = []
+        team.capture_timer = self._capture_time
+
+        if team.capture_counter is not None:
+            team.capture_counter.text = ""
+
+        if team.capture_sound is not None:
+            team.capture_sound.volume = 0.0
+
+    def _update_capture_timer(self) -> None:
+        """Update the capture timer and handle scoring for all teams."""
+        for team in self.teams:
+            # Clean up dead players
+            team.capturing_players = [p for p in team.capturing_players if p.is_alive()]
+
+            if team.capturing_players:
+                # If multiple teams are in the region, contest it.
+                first_team = team.capturing_players[0].team
+                if any(p.team is not first_team for p in team.capturing_players):
+                    self._reset_team_capture(team)
+                    continue
+
+                # Capture speed increases with more players, max 3.
+                capture_multiplier = min(len(team.capturing_players), 3)
+                team.capture_timer -= 0.1 * capture_multiplier
+
+                # Update the counter text
+                if team.capture_counter is not None:
+                    team.capture_counter.text = f"{team.capture_timer:.1f}"
+
+                # Score when timer reaches zero
+                if team.capture_timer <= 0:
+                    self._handle_score(team)
+                # Handle ticking sound
+                elif team.capture_sound is not None:
+                    team.capture_sound.volume = self._sound_volume
+            else:
+                self._reset_team_capture(team)
+
+    def _handle_score(self, enemy_team_being_captured: Team) -> None:
+        """Handle scoring when a player successfully captures a flag."""
+        if not enemy_team_being_captured.capturing_players:
+            return
+
+        capturing_player = enemy_team_being_captured.capturing_players[0]
+        scoring_team = capturing_player.team
+
+        # Prevent multiple simultaneous scores
+        if bs.time() != self._last_score_time:
+            self._last_score_time = bs.time()
+            self.stats.player_scored(capturing_player, 50, big_message=True)
+            self._score_sound.play()
+            self._flash_base(enemy_team_being_captured)
+
+            # Move all players on the scoring team back to their start
+            # and add flashes of light so its noticeable.
+            for player in scoring_team.players:
+                if player.is_alive():
+                    pos = player.node.position
+                    light = bs.newnode(
+                        'light',
+                        attrs={
+                            'position': pos,
+                            'color': scoring_team.color,
+                            'height_attenuated': False,
+                            'radius': 0.4,
+                        },
+                    )
+                    bs.timer(0.5, light.delete)
+                    bs.animate(light, 'intensity', {0: 0, 0.1: 1.0, 0.5: 0})
+
+                    new_pos = self.map.get_start_position(scoring_team.id)
+                    light = bs.newnode(
+                        'light',
+                        attrs={
+                            'position': new_pos,
+                            'color': scoring_team.color,
+                            'radius': 0.4,
+                            'height_attenuated': False,
+                        },
+                    )
+                    bs.timer(0.5, light.delete)
+                    bs.animate(light, 'intensity', {0: 0, 0.1: 1.0, 0.5: 0})
                     if player.actor:
-                        player.actor.handlemessage(bs.CelebrateMessage(2.0))
+                        random_num = random.uniform(0, 360)
 
-                player_team.score += 1
-                self._update_scoreboard()
-                if player_team.score >= self._score_to_win:
-                    self.end_game()
+                        # Slightly hacky workaround: normally,
+                        # teleporting back to base with a sticky
+                        # bomb stuck to you gives a crazy whiplash
+                        # rubber-band effect. Running the teleport
+                        # twice in a row seems to suppress that
+                        # though. Would be better to fix this at a
+                        # lower level, but this works for now.
+                        self._teleport(player, new_pos, random_num)
+                        bs.timer(
+                            0.01,
+                            bs.CallPartial(
+                                self._teleport, player, new_pos, random_num
+                            ),
+                        )
+
+            # Have teammates celebrate.
+            for player in scoring_team.players:
+                if player.actor:
+                    player.actor.handlemessage(bs.CelebrateMessage(2.0))
+
+            scoring_team.score += 1
+            self._update_scoreboard()
+
+            # Reset capture state for this team only
+            self._reset_team_capture(enemy_team_being_captured)
+
+            if scoring_team.score >= self._score_to_win:
+                self.end_game()
 
     def _teleport(
         self, client: Player, pos: Sequence[float], num: float
