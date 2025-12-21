@@ -256,7 +256,7 @@ class PowerupBox(bs.Actor):
                 'light_mesh': factory.mesh_simple,
                 'shadow_size': 0.5,
                 'color_texture': tex,
-                'reflection': 'powerup',
+                'reflection': 'char',
                 'reflection_scale': [0.5],
                 'materials': (factory.powerup_material, shared.object_material),
             },
