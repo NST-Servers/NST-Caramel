@@ -1182,26 +1182,99 @@ class TNTSpawner:
     category: Gameplay Classes
     """
 
-    def __init__(self, position: Sequence[float], respawn_time: float = 20.0):
+    def __init__(self, position: Sequence[float], respawn_time: float = 15.0):
         """Instantiate with given position and respawn_time (in seconds)."""
         self._position = position
         self._tnt: Bomb | None = None
-        self._respawn_time = random.uniform(0.8, 1.2) * respawn_time
+        self._respawn_time = respawn_time
         self._wait_time = 0.0
+        self._timer_text: bs.Node | None = None
         self._update()
 
         # Go with slightly more than 1 second to avoid timer stacking.
         self._update_timer = bs.Timer(
-            1.1, bs.WeakCallStrict(self._update), repeat=True
+            1.0, bs.WeakCallStrict(self._update), repeat=True
         )
+
+    def _create_timer_display(self) -> None:
+        """Create the visual timer display."""
+        # Create the timer text node
+        self._timer_text = bs.newnode(
+            'text',
+            attrs={
+                'position': (
+                    self._position[0],
+                    self._position[1] - 0.5,
+                    self._position[2],
+                ),
+                'text': str(int(self._respawn_time - self._wait_time)),
+                'in_world': True,
+                'shadow': 1.0,
+                'flatness': 1.0,
+                'color': (1, 1, 1, 0),  # Start invisible
+                'scale': 0.02,
+                'h_align': 'center',
+            },
+        )
+
+    def _update_timer_display(self) -> None:
+        """Update the timer display."""
+        if not self._timer_text:
+            self._create_timer_display()
+
+        assert self._timer_text is not None
+        time_left = int(self._respawn_time - self._wait_time)
+
+        # Update the text
+        self._timer_text.text = str(time_left)
+
+        # Calculate opacity based on progress (0 to 1)
+        progress = self._wait_time / self._respawn_time
+        opacity = min(1.0, progress)
+
+        # The color for TNT
+        color = (1.0, 0.5, 0.0)  # Default orange
+
+        # Make color more intense in the last second
+        if time_left <= 1:
+            # Already at full intensity
+            self._timer_text.color = color
+
+            # Emit sparks in the last second
+            if time_left == 1 and self._wait_time % 1 < 0.1:
+                bs.emitfx(
+                    position=self._position,
+                    velocity=(0, 0, 0),
+                    count=int(5 + random.random() * 5),
+                    scale=0.4,
+                    spread=0.5,
+                    chunk_type='spark',
+                )
+        else:
+            # Slightly muted color for earlier countdown
+            muted_color = tuple(c * 0.7 for c in color)  # 70% intensity
+            self._timer_text.color = muted_color
+
+        # Set opacity
+        self._timer_text.opacity = opacity
+
+    def _clear_timer_display(self) -> None:
+        """Clear the timer display."""
+        if self._timer_text:
+            self._timer_text.delete()
+            self._timer_text = None
 
     def _update(self) -> None:
         tnt_alive = self._tnt is not None and self._tnt.node
         if not tnt_alive:
+            self._update_timer_display()
             # Respawn if its been long enough.. otherwise just increment our
             # how-long-since-we-died value.
             if self._tnt is None or self._wait_time >= self._respawn_time:
                 self._tnt = Bomb(position=self._position, bomb_type='tnt')
                 self._wait_time = 0.0
+                self._clear_timer_display()
             else:
-                self._wait_time += 1.1
+                self._wait_time += 1.0
+        else:
+            self._clear_timer_display()

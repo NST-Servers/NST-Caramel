@@ -5,7 +5,7 @@
 # Uncomment any of these values to override defaults.
 
 # Name of our server in the public parties list.
-#party_name = "FFA"
+party_name = "NST Caramel FFA"
 
 # If true, your party will show up in the global public party list
 # Otherwise it will still be joinable via LAN or connecting by IP
@@ -22,7 +22,7 @@
 # default kick vote system and they are able to kick players without
 # a vote. To get your account id, enter 'getaccountid' in
 # settings->advanced->enter-code.
-#admins = ["pb-yOuRAccOuNtIdHErE", "pb-aNdMayBeAnotherHeRE"]
+admins = ["pb-LV4FXxRcVEMWWQxBFERRVgNHRg==",]
 
 # Whether the default kick-voting system is enabled.
 #enable_default_kick_voting = true
@@ -65,13 +65,13 @@
 # Options here are 'ffa' (free-for-all), 'teams' and 'coop'
 # (cooperative) This value is ignored if you supply a playlist_code
 # (see below).
-#session_type = "ffa"
+session_type = "ffa"
 
 # Playlist-code for teams or free-for-all mode sessions. To host
 # your own custom playlists, use the 'share' functionality in the
 # playlist editor in the regular version of the game. This will give
 # you a numeric code you can enter here to host that playlist.
-#playlist_code = 12345
+playlist_code = 576514
 
 # Alternately, you can embed playlist data here instead of using
 # codes. Make sure to set session_type to the correct type for the
@@ -80,7 +80,7 @@
 
 # Whether to shuffle the playlist or play its games in designated
 # order.
-#playlist_shuffle = true
+playlist_shuffle = true
 
 # If true, keeps team sizes equal by disallowing joining the largest
 # team (teams mode only).
@@ -120,7 +120,7 @@
 # currently-signed-in account's id. To fetch info about an account,
 # your back-end server can use the following url:
 # https://legacy.ballistica.net/accountquery?id=ACCOUNT_ID_HERE
-#stats_url = "https://mystatssite.com/showstats?player=${ACCOUNT}"
+stats_url = "https://discord.gg/hUmzT6VPmp"
 
 # If present, the server subprocess will attempt to gracefully exit
 # after this amount of time. A graceful exit can occur at the end of
