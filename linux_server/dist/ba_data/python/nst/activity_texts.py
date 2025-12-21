@@ -30,7 +30,7 @@ class InfoText(bs.Actor):
                 'v_attach': 'top',
                 'h_attach': 'left',
                 'h_align': 'left',
-                'position': (15, -530),
+                'position': (15, -515),
                 'scale': 0.7,
                 'text': text,
                 'color': (1, 1, 1, 1),
@@ -78,7 +78,7 @@ class NotifText(bs.Actor):
                 'v_attach': 'top',
                 'h_attach': 'center',
                 'h_align': 'center',
-                'position': (0, -70),
+                'position': (0, -100),
                 'scale': 1.0,
                 'color': (1, 1, 1,),
                 'shadow': 0.5,
@@ -103,8 +103,8 @@ class NotifText(bs.Actor):
         text = self._messages[self._index]
         self.node.text = text
 
-        # Show for 5 seconds
-        show_duration = 5.0
+        # Show for 8 seconds
+        show_duration = 8.0
         if show_duration > self._interval:
             show_duration = self._interval - 0.5
 
