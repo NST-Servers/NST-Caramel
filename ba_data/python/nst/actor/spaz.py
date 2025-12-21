@@ -5,7 +5,7 @@ from typing import override
 
 from nst.utils import clone_object, replace_methods
 import bascenev1lib.actor.spaz as vanilla_spaz
-from bascenev1lib.actor.spazfactory import SpazFactory
+from nst.actor.spazfactory import SpazFactory
 import bascenev1 as bs
 
 GLOVES_PUNCH_CD = 1000
@@ -47,7 +47,24 @@ class Spaz(vanilla_spaz.Spaz):
 
     @override
     def on_bomb_press(self) -> None:
-        SpazClass.on_bomb_press(self)
+        if (
+            not self.node
+            or self._dead
+            or self.frozen
+            or self.node.knockout > 0.0
+        ):
+            return
+        t_ms = int(bs.time() * 1000.0)
+        assert isinstance(t_ms, int)
+        if t_ms - self.last_bomb_time_ms >= self._bomb_cooldown:
+            self.last_bomb_time_ms = t_ms
+            self.node.bomb_pressed = True
+            if not self.node.hold_node:
+                self.drop_bomb()
+                sf = SpazFactory.get()
+                sf.bomb_sound.play(0.6, position=self.node.position)
+
+        self._turbo_filter_add_press('bomb')
 
         # Check if we're currently holding a spaz node
         if self.node.hold_node and self.node.hold_node.getnodetype() == 'spaz':
@@ -77,7 +94,7 @@ class Spaz(vanilla_spaz.Spaz):
 
         self._punch_power_scale = GLOVES_PUNCH_POWER
         self._punch_cooldown = GLOVES_PUNCH_CD
-    
+
     @override
     def equip_shields(self, decay: bool = False, decay_rate: float = 10) -> None:
         """
