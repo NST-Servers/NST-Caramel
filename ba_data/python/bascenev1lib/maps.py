@@ -941,11 +941,10 @@ class DoomShroom(bs.Map):
             },
         )
         gnode = bs.getactivity().globalsnode
-        gnode.tint = (0.82, 1.10, 1.15)
-        gnode.ambient_color = (0.9, 1.3, 1.1)
+        gnode.ambient_color = (0.9, 1.0, 0.9)
         gnode.shadow_ortho = False
-        gnode.vignette_outer = (0.76, 0.76, 0.76)
-        gnode.vignette_inner = (0.95, 0.95, 0.99)
+        gnode.vignette_outer = (0.55, 0.65, 0.55)
+        gnode.vignette_inner = (0.85, 0.90, 0.85)
 
     @override
     def is_point_near_edge(self, point: bs.Vec3, running: bool = False) -> bool:
@@ -1122,11 +1121,10 @@ class TipTop(bs.Map):
             },
         )
         gnode = bs.getactivity().globalsnode
-        gnode.tint = (0.8, 0.9, 1.3)
-        gnode.ambient_color = (0.8, 0.9, 1.3)
-        gnode.vignette_outer = (0.79, 0.79, 0.69)
-        gnode.vignette_inner = (0.97, 0.97, 0.99)
-
+        gnode.tint = (1.15, 0.95, 0.85)
+        gnode.ambient_color = (1.1, 0.9, 0.75)
+        gnode.vignette_outer = (0.75, 0.60, 0.45)
+        gnode.vignette_inner = (0.97, 0.93, 0.88)
 
 class CragCastle(bs.Map):
     """A lovely castle map."""
