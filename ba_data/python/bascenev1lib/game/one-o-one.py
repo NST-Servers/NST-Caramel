@@ -700,9 +700,6 @@ class OneoOneGame(bs.TeamGameActivity[Player, Team]):
         # Apply start items
         if self._start_shield:
             actor.equip_shields()
-            # We'll epicly set shield color to name color
-            if actor.shield:
-                actor.shield.color = player.color
         if self._start_gloves:
             actor.equip_boxing_gloves()
         if self._start_impact_bombs:
