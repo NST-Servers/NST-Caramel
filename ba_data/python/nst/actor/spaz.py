@@ -15,7 +15,7 @@ GLOVES_PUNCH_POWER = 1.7
 PICKUP_CD_PERSON_UNIVERSAL = 0.8
 PICKUP_CD_OBJECTS = 0
 
-SHIELD_HP = 1000
+SHIELD_HP = 650
 
 # Clone our vanilla spaz class
 # We'll be calling this over "super()" to prevent the code
@@ -136,7 +136,7 @@ class Spaz(vanilla_spaz.Spaz):
 
         if self.shield_decay_rate > 0:
             self.shield_decay_timer = bs.Timer(
-                0.5, bs.WeakCallPartial(self.shield_decay, decay_rate), repeat=True
+                0.5, bs.WeakCallStrict(self.shield_decay), repeat=True
             )
             # So user can see the decay.
             self.shield.always_show_health_bar = True

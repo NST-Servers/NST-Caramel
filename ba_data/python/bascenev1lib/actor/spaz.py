@@ -987,7 +987,7 @@ class Spaz(bs.Actor):
                     damage = damage_scale * self.node.damage
 
                 # Calculate shield damage and player damage
-                shield_damage = int(damage * 0.5)
+                shield_damage = int(damage * 0.3)
                 damage *= 0.5
 
                 shield_leftover_ratio = 0.30
