@@ -1323,6 +1323,10 @@ class Spaz(bs.Actor):
             except Exception:
                 pass
 
+            # If we're on grab cooldown, don't pick up spaz
+            if opposingnode.getnodetype() == 'spaz' and self.can_grab_spaz == False:
+                return True
+
             # If we're grabbing the pelvis of a non-shattered spaz, we wanna
             # grab the torso instead.
             if (
