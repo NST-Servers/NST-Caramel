@@ -953,18 +953,25 @@ class Spaz(bs.Actor):
                     )
                     damage = damage_scale * self.node.damage
 
+                # Calculate shield damage and player damage
+                shield_damage = int(damage * 0.5)
+                damage *= 0.5
+
+                shield_leftover_ratio = 0.30
+
+                # Apply damage to shield
                 assert self.shield_hitpoints is not None
-                self.shield_hitpoints -= int(damage)
+                self.shield_hitpoints -= shield_damage
                 self.shield.hurt = (
                     1.0
                     - float(self.shield_hitpoints) / self.shield_hitpoints_max
                 )
 
-                # Its a cleaner event if a hit just kills the shield
-                # without damaging the player.
-                # However, massive damage events should still be able to
-                # damage the player. This hopefully gives us a happy medium.
-                max_spillover = SpazFactory.get().max_shield_spillover_damage
+                # We'll use a reduced magnitude
+                mag *= 0.5
+                velocity_mag *= 0.5
+
+                # Process shield destruction if needed
                 if self.shield_hitpoints <= 0:
                     # FIXME: Transition out perhaps?
                     self.shield.delete()
@@ -984,7 +991,6 @@ class Spaz(bs.Actor):
                         spread=0.6,
                         chunk_type='spark',
                     )
-
                 else:
                     SpazFactory.get().shield_hit_sound.play(
                         0.5,
@@ -992,31 +998,29 @@ class Spaz(bs.Actor):
                     )
 
                 # Emit some cool looking sparks on shield hit.
-                assert msg.force_direction is not None
-                bs.emitfx(
-                    position=msg.pos,
-                    velocity=(
-                        msg.force_direction[0] * 1.0,
-                        msg.force_direction[1] * 1.0,
-                        msg.force_direction[2] * 1.0,
-                    ),
-                    count=min(30, 5 + int(damage * 0.005)),
-                    scale=0.5,
-                    spread=0.3,
-                    chunk_type='spark',
-                )
-
-                # If they passed our spillover threshold,
-                # pass damage along to spaz.
-                if self.shield_hitpoints <= -max_spillover:
-                    leftover_damage = -max_spillover - self.shield_hitpoints
-                    shield_leftover_ratio = leftover_damage / damage
-
-                    # Scale down the magnitudes applied to spaz accordingly.
-                    mag *= shield_leftover_ratio
-                    velocity_mag *= shield_leftover_ratio
+                if msg.force_direction is not None:
+                    bs.emitfx(
+                        position=msg.pos,
+                        velocity=(
+                            msg.force_direction[0] * 1.0,
+                            msg.force_direction[1] * 1.0,
+                            msg.force_direction[2] * 1.0,
+                        ),
+                        count=min(30, 5 + int(damage * 0.005)),
+                        scale=0.5,
+                        spread=0.3,
+                        chunk_type='spark',
+                    )
                 else:
-                    return True  # Good job shield!
+                    # Fallback velocity when force_direction is None
+                    bs.emitfx(
+                        position=msg.pos,
+                        velocity=(0.0, 1.0, 0.0),  # Default upward direction
+                        count=min(30, 5 + int(damage * 0.005)),
+                        scale=0.5,
+                        spread=0.3,
+                        chunk_type='spark',
+                    )
             else:
                 shield_leftover_ratio = 1.0
 

@@ -5,6 +5,7 @@ from typing import override
 
 from nst.utils import clone_object, replace_methods
 import bascenev1lib.actor.spaz as vanilla_spaz
+from bascenev1lib.actor.spazfactory import SpazFactory
 import bascenev1 as bs
 
 GLOVES_PUNCH_CD = 1000
@@ -12,6 +13,8 @@ GLOVES_PUNCH_POWER = 1.7
 
 PICKUP_CD_PERSON_UNIVERSAL = 0.8
 PICKUP_CD_OBJECTS = 0
+
+SHIELD_HP = 1000
 
 # Clone our vanilla spaz class
 # We'll be calling this over "super()" to prevent the code
@@ -74,6 +77,51 @@ class Spaz(vanilla_spaz.Spaz):
 
         self._punch_power_scale = GLOVES_PUNCH_POWER
         self._punch_cooldown = GLOVES_PUNCH_CD
+    
+    @override
+    def equip_shields(self, decay: bool = False, decay_rate: float = 10) -> None:
+        """
+        Give this spaz a nice energy shield.
+        """
+
+        if not self.node:
+            logging.exception('Can\'t equip shields; no node.')
+            return
+
+        factory = SpazFactory.get()
+        if self.shield is None:
+            neon_power = 1.25
+            shield_color = (max(0.8, self.node.color[0] * 2),
+                            max(0.8,self.node.color[1] * 2),
+                            max(0.8,self.node.color[2] * 2))
+
+            # Tone down neon colors
+            if (self.node.color[0] + self.node.color[1] + self.node.color[2]) > 3.0:
+                neon_power = max(self.node.color[0], self.node.color[1], self.node.color[2])
+
+
+            self.shield = bs.newnode(
+                'shield',
+                owner=self.node,
+                attrs={'color': (shield_color[0] / neon_power,
+                                 shield_color[1] / neon_power,
+                                 shield_color[2] / neon_power),
+                       'radius': 0.95},
+            )
+
+            self.node.connectattr('position_center', self.shield, 'position')
+
+        self.shield_hitpoints = SHIELD_HP
+        self.shield_decay_rate = decay_rate if decay else 0
+        self.shield.hurt = 0
+        factory.shield_up_sound.play(1.0, position=self.node.position)
+
+        if self.shield_decay_rate > 0:
+            self.shield_decay_timer = bs.Timer(
+                0.5, bs.WeakCallPartial(self.shield_decay, decay_rate), repeat=True
+            )
+            # So user can see the decay.
+            self.shield.always_show_health_bar = True
 
     def set_grab_spaz(self, c: bool):
         if not self.node or not self.node.exists() or not self.is_alive():
