@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import override
 
+from nst.gameplay import quickturn
 from nst.utils import clone_object, replace_methods
 import bascenev1lib.actor.spaz as vanilla_spaz
 from nst.actor.spazfactory import SpazFactory
