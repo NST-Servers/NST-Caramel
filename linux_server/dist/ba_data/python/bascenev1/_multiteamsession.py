@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
     import bascenev1
 
-DEFAULT_TEAM_COLORS = ((0.1, 0.25, 1.0), (1.0, 0.25, 0.2))
-DEFAULT_TEAM_NAMES = ('Blue', 'Red')
+DEFAULT_TEAM_COLORS = ((0.502, 0.141, 0), (0.302, 0.98, 0.635))
+DEFAULT_TEAM_NAMES = ('Chocos', 'Minties')
 
 
 class MultiTeamSession(Session):
