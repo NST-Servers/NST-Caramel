@@ -9,6 +9,8 @@ import bascenev1 as bs
 if TYPE_CHECKING:
     from typing import Any
 
+INFO_DURATION = 9.0
+NOTIF_DURATION = 8.0
 
 class InfoText(bs.Actor):
     """Text shown at the start of activity explaining server mechanics."""
@@ -30,8 +32,8 @@ class InfoText(bs.Actor):
                 'v_attach': 'top',
                 'h_attach': 'left',
                 'h_align': 'left',
-                'position': (15, -515),
-                'scale': 0.7,
+                'position': (15, -525),
+                'scale': 0.6,
                 'text': text,
                 'color': (1, 1, 1, 1),
                 'shadow': 0.5,
@@ -44,8 +46,8 @@ class InfoText(bs.Actor):
         bs.animate(self.node, 'opacity', {0: 0, 1.0: 0.8})
 
         # Fade out and die
-        bs.animate(self.node, 'opacity', {10.0: 0.8, 12.0: 0})
-        bs.timer(12.0, self.node.delete)
+        bs.animate(self.node, 'opacity', {INFO_DURATION - 2: 0.8, INFO_DURATION: 0})
+        bs.timer(INFO_DURATION, self.node.delete)
 
     def handlemessage(self, msg: Any) -> Any:
         if isinstance(msg, bs.DieMessage):
@@ -60,7 +62,7 @@ class NotifText(bs.Actor):
     def __init__(
         self,
         messages: list[str | bs.Lstr] | None = None,
-        interval: float = 60.0,
+        interval: float = 90.0,
     ):
         super().__init__()
         if messages is None:
@@ -79,7 +81,7 @@ class NotifText(bs.Actor):
                 'h_attach': 'center',
                 'h_align': 'center',
                 'position': (0, -100),
-                'scale': 1.0,
+                'scale': 0.8,
                 'color': (1, 1, 1,),
                 'shadow': 0.5,
                 'flatness': 1.0,
@@ -89,7 +91,7 @@ class NotifText(bs.Actor):
         )
 
         self._timer = bs.Timer(
-            interval, bs.WeakCall(self._update), repeat=True
+            interval, bs.WeakCallStrict(self._update), repeat=True
         )
         self._update()
 
@@ -103,21 +105,33 @@ class NotifText(bs.Actor):
         text = self._messages[self._index]
         self.node.text = text
 
-        # Show for 8 seconds
-        show_duration = 8.0
+        # Set initial state (invisible and up)
+        self.node.opacity = 0.0
+        self.node.position = (0, -50)
+
+        show_duration = NOTIF_DURATION
         if show_duration > self._interval:
             show_duration = self._interval - 0.5
 
+        # Animate in and out
         bs.animate(
             self.node,
             'opacity',
             {
                 0.0: 0,
-                0.5: 0.8,
-                show_duration: 0.8,
-                show_duration + 0.5: 0,
+                0.5: 0.9,
+                show_duration - 2: 0.9,
+                show_duration: 0,
             },
         )
+        bs.animate_array(self.node, 'position', 2, {
+            0: (0, -50),
+            0.1: (0, -55),
+            0.2: (0, -68),
+            0.3: (0, -82),
+            0.4: (0, -95),
+            0.5: (0, -100),
+        })
 
         self._index = (self._index + 1) % len(self._messages)
 

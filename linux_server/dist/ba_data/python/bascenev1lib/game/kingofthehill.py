@@ -204,7 +204,7 @@ class KingOfTheHillGame(bs.TeamGameActivity[Player, Team]):
                 attrs={
                     'position': (self._flag_pos[0], self._flag_pos[1]*1.06, self._flag_pos[2]),
                     'scale': (3.4, 1.75, 0.8),
-                    'type': 'square',
+                    'type': 'box',
                     'materials': flagmats,
                 },
             )

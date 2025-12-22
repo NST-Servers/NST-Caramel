@@ -562,6 +562,9 @@ class OneoOneGame(bs.TeamGameActivity[Player, Team]):
                         )
                     )
 
+                    if not player.actor or not player.actor.is_alive():
+                        continue
+
                     # Create light
                     if player.stalemate_light is None:
                         player.stalemate_light = bs.newnode(
