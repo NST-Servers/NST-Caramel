@@ -237,24 +237,6 @@ class BombFactory:
             actions=('message', 'our_node', 'at_connect', ImpactMessage()),
         )
 
-        # New action for land-mine-on-land-mine collision
-        self.land_mine_blast_material.add_actions(
-            conditions=(
-                ('we_are_older_than', 200),
-                'and',
-                ('they_are_older_than', 200),
-                'and',
-                ('eval_colliding',),
-                'and',
-                (
-                    ('they_have_material', self.land_mine_blast_material),
-                    'and',
-                    ('they_dont_have_material', self.land_mine_no_explode_material),
-                ),
-            ),
-            actions=('message', 'our_node', 'at_connect', MineBeepMessage()),
-        )
-
         self.impact_blast_material = bs.Material()
         self.impact_blast_material.add_actions(
             conditions=(
@@ -1148,20 +1130,7 @@ class Bomb(bs.Actor):
             # don't explode; just beep.
             if self.bomb_type == 'land_mine' and msg.hit_subtype == 'land_mine':
                 if self.node:
-                    factory = BombFactory.get()
-                    factory.activate_sound.play(
-                        0.5, position=self.node.position
-                    )
-                    intex = (factory.land_mine_lit_tex, factory.land_mine_tex)
-                    ts_node = bs.newnode(
-                        'texture_sequence',
-                        owner=self.node,
-                        attrs={'rate': 30, 'input_textures': intex},
-                    )
-                    ts_node.connectattr(
-                        'output_texture', self.node, 'color_texture'
-                    )
-                    bs.timer(0.5, ts_node.delete)
+                    self._handle_mine_beep()
             else:
                 # Also lets change the owner of the bomb to whoever is setting
                 # us off. (this way points for big chain reactions go to the
