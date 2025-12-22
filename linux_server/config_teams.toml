@@ -5,7 +5,7 @@
 # Uncomment any of these values to override defaults.
 
 # Name of our server in the public parties list.
-party_name = "NST Caramel (FFA)"
+party_name = "NST Caramel (Teams)"
 
 # If true, your party will show up in the global public party list
 # Otherwise it will still be joinable via LAN or connecting by IP
@@ -49,7 +49,7 @@ admins = ["pb-LV4FXxRcVEMWWQxBFERRVgNHRg==",]
 #
 # 43210 is the default and the only port that will show up in the
 # LAN browser tab.
-port = 43210
+port = 43211
 
 # Max devices in the party. Note that this does *NOT* mean max
 # players. Any device in the party can have more than one player on
@@ -65,13 +65,13 @@ max_party_size = 7
 # Options here are 'ffa' (free-for-all), 'teams' and 'coop'
 # (cooperative) This value is ignored if you supply a playlist_code
 # (see below).
-session_type = "ffa"
+session_type = "teams"
 
 # Playlist-code for teams or free-for-all mode sessions. To host
 # your own custom playlists, use the 'share' functionality in the
 # playlist editor in the regular version of the game. This will give
 # you a numeric code you can enter here to host that playlist.
-playlist_code = 576656
+playlist_code = 576669
 
 # Alternately, you can embed playlist data here instead of using
 # codes. Make sure to set session_type to the correct type for the
