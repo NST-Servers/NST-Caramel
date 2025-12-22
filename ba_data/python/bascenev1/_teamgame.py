@@ -62,7 +62,7 @@ class TeamGameActivity[PlayerT: bascenev1.Player, TeamT: bascenev1.Team](
         # pylint: disable=cyclic-import
         from bascenev1._coopsession import CoopSession
         from bascenev1lib.actor.controlsguide import ControlsGuide
-        from nst.activity_texts import InfoText, NotifText
+        from nst.activity_texts import InfoText, NotifText, WatermarkText
 
         super().on_transition_in()
 
@@ -89,6 +89,7 @@ class TeamGameActivity[PlayerT: bascenev1.Player, TeamT: bascenev1.Team](
 
         InfoText().autoretain()
         NotifText().autoretain()
+        WatermarkText().autoretain()
 
     @override
     def on_begin(self) -> None:
