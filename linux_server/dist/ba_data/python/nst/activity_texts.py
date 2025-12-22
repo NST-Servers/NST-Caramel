@@ -56,6 +56,34 @@ class InfoText(bs.Actor):
         return super().handlemessage(msg)
 
 
+class WatermarkText(bs.Actor):
+    """Text shown in the bottom left corner."""
+
+    def __init__(self):
+        super().__init__()
+        self.node = bs.newnode(
+            'text',
+            attrs={
+                'v_attach': 'bottom',
+                'h_attach': 'right',
+                'h_align': 'right',
+                'position': (-20, -95),
+                'scale': 0.35,
+                'big': True,
+                'text': 'NST Caramel',
+                'color': (0.851, 0.408, 0),
+                'shadow': 0.5,
+                'flatness': 1.0,
+            },
+        )
+
+    def handlemessage(self, msg: Any) -> Any:
+        if isinstance(msg, bs.DieMessage):
+            if self.node:
+                self.node.delete()
+        return super().handlemessage(msg)
+
+
 class NotifText(bs.Actor):
     """Text shown at top center cycling through messages."""
 

@@ -1,13 +1,13 @@
 """
-    
+
     Hot Potato by themikirog
     Version 3
-    
-    A random player(s) gets Marked. 
+
+    A random player(s) gets Marked.
     They will die if they don't pass the mark to other players.
     After they die, another random player gets Marked.
     Last player standing wins!
-    
+
     Heavily commented for easy modding learning!
 
     No Rights Reserved
@@ -115,8 +115,6 @@ class Icon(ba.Actor):
                  shadow: float = 1.0):
         super().__init__()
 
-        # Define the player this icon belongs to
-        self._player = player
         self._name_scale = name_scale
 
         self._outline_tex = ba.gettexture('characterIconMask')
@@ -275,7 +273,7 @@ class PotatoBomb(Bomb):
 
             ba.timer(
                 0.1 + random.random() * 0.1,
-                ba.WeakCall(self.handlemessage, ExplodeMessage()),
+                ba.WeakCallPartial(self.handlemessage, ExplodeMessage()),
             )
         assert self.node
         self.node.handlemessage(
@@ -394,7 +392,7 @@ class PotatoPlayerSpaz(PlayerSpaz):
             if not _marked and _holding_someone:
                 self._able_to_pickup = False
                 self._pickup_timer = ba.Timer(
-                    self._pickup_cooldown, ba.WeakCall(self._on_pickup_timer_timeout))
+                    self._pickup_cooldown, ba.WeakCallStrict(self._on_pickup_timer_timeout))
             self.node.pickup_pressed = True
             self.last_pickup_time_ms = t_ms
 
@@ -429,7 +427,7 @@ class PotatoPlayerSpaz(PlayerSpaz):
         if dropping_bomb:
             self.bomb_count -= 1
             bomb.node.add_death_action(
-                ba.WeakCall(self.handlemessage, BombDiedMessage())
+                ba.WeakCallPartial(self.handlemessage, BombDiedMessage())
             )
         self._pick_up(bomb.node)
 
@@ -464,7 +462,7 @@ class PotatoPlayerSpaz(PlayerSpaz):
             self.set_bombs_marked()
             # When the bomb physics node dies, call a function.
             bomb.node.add_death_action(
-                ba.WeakCall(self.bomb_died, bomb))
+                ba.WeakCallPartial(self.bomb_died, bomb))
 
     # Here's the function that gets called when one of the player's bombs dies.
     # We reference the player's dropped_bombs list and remove the bomb that died.
@@ -760,8 +758,8 @@ class Player(ba.Player['Team']):
 
             self.stunned_time_remaining = stun_time  # Set our stun time remaining
             # Remove our stun once the time is up
-            self.stunned_timer = ba.Timer(stun_time + 0.1, ba.Call(self.stun_remove))
-            self.stunned_update_timer = ba.Timer(0.1, ba.Call(
+            self.stunned_timer = ba.Timer(stun_time + 0.1, ba.WeakCallStrict(self.stun_remove))
+            self.stunned_update_timer = ba.Timer(0.1, ba.WeakCallStrict(
                 self.stunned_timer_tick), repeat=True)  # Call a function every 0.1 seconds
             self.fall_times += 1  # Increase the amount of times we fell by one
             # Change the text above the Spaz's head to total stun time
@@ -1071,10 +1069,10 @@ class HotPotato(ba.TeamGameActivity[Player, ba.Team]):
                 # Let's add our lone survivor to the match placement list.
                 self.match_placement.append(alive_players[0].team)
             # Wait a while to let this sink in before we announce our victor.
-            self._end_game_timer = ba.Timer(1.25, ba.Call(self.end_game))
+            self._end_game_timer = ba.Timer(1.25, ba.WeakCallStrict(self.end_game))
         else:
             # There's still players remaining, so let's wait a while before marking a new player.
-            self.new_mark_timer = ba.Timer(2.0 if self.slow_motion else 4.0, ba.Call(self.new_mark))
+            self.new_mark_timer = ba.Timer(2.0 if self.slow_motion else 4.0, ba.WeakCallStrict(self.new_mark))
 
     # Another extensively used function that returns all alive players.
     def get_alive_players(self) -> Sequence[ba.Player]:
@@ -1113,7 +1111,7 @@ class HotPotato(ba.TeamGameActivity[Player, ba.Team]):
         # Set time until marked players explode
         self.elimination_timer_display = self.settings['Elimination Timer']
         # Set a timer that calls _eliminate_tick every second
-        self.marked_tick_timer = ba.Timer(1.0, ba.Call(self._eliminate_tick), repeat=True)
+        self.marked_tick_timer = ba.Timer(1.0, ba.WeakCallStrict(self._eliminate_tick), repeat=True)
         # Mark all chosen victims and play a sound
         for new_victim in all_victims:
             # _marked_sounds is an array.
@@ -1137,10 +1135,10 @@ class HotPotato(ba.TeamGameActivity[Player, ba.Team]):
         # End the game if there's only one player
         if len(self.players) < 2:
             self.match_placement.append(self.players[0].team)
-            self._round_end_timer = ba.Timer(0.5, self.end_game)
+            self._round_end_timer = ba.Timer(0.5, ba.WeakCallStrict(self.end_game))
         else:
             # Pick random player(s) to get marked
-            self.new_mark_timer = ba.Timer(2.0 if self.slow_motion else 5.2, ba.Call(self.new_mark))
+            self.new_mark_timer = ba.Timer(2.0 if self.slow_motion else 5.2, ba.WeakCallStrict(self.new_mark))
 
         self._update_icons()  # Create player state icons
 
