@@ -580,8 +580,7 @@ class Chooser:
                 fallback_resource='editProfileWindow.titleNewText',
             ).evaluate()
         else:
-            name = re.sub(r'[^a-zA-Z0-9]', '', name)
-            if not name:
+            if not name.strip():
                 name = self._random_name_marker
 
             # If we have a regular profile marked as global with an icon,
