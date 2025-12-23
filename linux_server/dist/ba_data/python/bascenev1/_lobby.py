@@ -580,8 +580,19 @@ class Chooser:
                 fallback_resource='editProfileWindow.titleNewText',
             ).evaluate()
         else:
+            # Reject names consisting only of whitespace
             if not name.strip():
                 name = self._random_name_marker
+            else:
+                # Allow letters, digits, and spaces; strip everything else
+                name = re.sub(r'[^a-zA-Z0-9 ]+', '', name)
+            
+                # Normalize whitespace (optional but recommended)
+                name = re.sub(r'\s+', ' ', name).strip()
+            
+                if not name:
+                    name = self._random_name_marker
+
 
             # If we have a regular profile marked as global with an icon,
             # use it (for full only).
