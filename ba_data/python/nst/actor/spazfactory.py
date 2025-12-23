@@ -26,6 +26,7 @@ class SpazFactory(vanilla_spazfactory.SpazFactory):
 
         self.bomb_sound = bs.getsound('pop01')
         self.quickturn_sound = bs.getsound('swish2')
+        self.waving_sound = bs.getsound('punchSwish')
 
 
 # Overwrite the vanilla game's spaz factory with our own

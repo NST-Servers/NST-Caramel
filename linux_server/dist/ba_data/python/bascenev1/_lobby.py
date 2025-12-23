@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import re
+import random
 import logging
 import weakref
 from dataclasses import dataclass
@@ -23,6 +25,21 @@ if TYPE_CHECKING:
 MAX_QUICK_CHANGE_COUNT = 30
 QUICK_CHANGE_INTERVAL = 0.05
 QUICK_CHANGE_RESET_INTERVAL = 1.0
+
+# Our names for... the nameles...
+RANDOM_NAMES = [
+    'Anonym',
+    'John Doe',
+    'Nameless',
+    'This Guy',
+    'That One',
+    'Who?',
+    'Fat Pig',
+    'NoName',
+    'Mr. X',
+    'Bazinga',
+    'Spazinga'
+]
 
 
 # Hmm should we move this to actors?..
@@ -406,6 +423,7 @@ class Chooser:
     def update_from_profile(self) -> None:
         """Set character/colors based on the current profile."""
         assert babase.app.classic is not None
+        self._random_name_marker = random.choice(RANDOM_NAMES)
         self._profilename = self._profilenames[self._profileindex]
         if self._profilename == '_edit':
             pass
@@ -562,6 +580,10 @@ class Chooser:
                 fallback_resource='editProfileWindow.titleNewText',
             ).evaluate()
         else:
+            name = re.sub(r'[^a-zA-Z0-9]', '', name)
+            if not name:
+                name = self._random_name_marker
+
             # If we have a regular profile marked as global with an icon,
             # use it (for full only).
             if full:

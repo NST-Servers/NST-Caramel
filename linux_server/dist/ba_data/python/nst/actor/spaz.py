@@ -19,6 +19,8 @@ PICKUP_CD_OBJECTS = 0
 
 SHIELD_HP = 650
 
+HOLD_TO_WAVE_TIME = 0.8
+
 # Clone our vanilla spaz class
 # We'll be calling this over "super()" to prevent the code
 # from falling apart because the engine is like that. :p
@@ -37,9 +39,18 @@ class Spaz(vanilla_spaz.Spaz):
 
         # Our cool attributes
         self.can_grab_spaz = True
+        
+        # Wave
+        self.waving = False
+        self.holding_pickup = False
+        self.holding_punch = False
+        self.wave_sound_node: bs.Node | None = None
+        self.hold_to_wave_timer: bs.Timer | None = None
+        self.wave_check_timer: bs.Timer | None = None
 
     @override
     def on_punch_press(self) -> None:
+        self.holding_punch = True
         SpazClass.on_punch_press(self)
 
         # Check if we're currently holding a spaz node
@@ -47,6 +58,11 @@ class Spaz(vanilla_spaz.Spaz):
             # Set the longer cooldown when pressing pickup while holding a spaz
             self.set_grab_spaz(False)
             bs.timer(PICKUP_CD_PERSON_UNIVERSAL, bs.CallPartial(self.set_grab_spaz, True))
+
+    @override
+    def on_punch_release(self) -> None:
+        SpazClass.on_punch_release(self)
+        self.holding_punch = False
 
     @override
     def on_bomb_press(self) -> None:
@@ -75,6 +91,7 @@ class Spaz(vanilla_spaz.Spaz):
 
     @override
     def on_pickup_press(self) -> None:
+        self.holding_pickup = True
         SpazClass.on_pickup_press(self)
 
         # Check if we're currently holding a spaz node.
@@ -82,6 +99,73 @@ class Spaz(vanilla_spaz.Spaz):
             # Set the longer cooldown when pressing pickup while holding a spaz
             self.set_grab_spaz(False)
             bs.timer(PICKUP_CD_PERSON_UNIVERSAL, bs.CallPartial(self.set_grab_spaz, True))
+
+        # Start the hold-to-wave timer only if it doesn't exist yet
+        if not self.hold_to_wave_timer:
+            if not self.node.hold_node:
+                self.hold_to_wave_timer = bs.Timer(HOLD_TO_WAVE_TIME, bs.CallStrict(self.start_waving))
+
+    @override
+    def on_pickup_release(self) -> None:
+        SpazClass.on_pickup_release(self)
+        self.holding_pickup = False
+
+        if self.waving and self.hold_to_wave_timer:
+            self.stop_waving()
+        elif self.hold_to_wave_timer:
+            self.hold_to_wave_timer = None
+
+    def start_waving(self) -> None:
+        """Start the continuous waving if pickup is still pressed."""
+        if not self.node or not self.node.exists() or not self.is_alive():
+            return
+
+        # Only start waving if pickup is still pressed after the hold time
+        if self.holding_pickup:
+            self.waving = True
+            # Create a timer that checks every 0.1s if we should continue waving
+            self.wave_check_timer = bs.Timer(0.1, bs.CallStrict(self.check_continue_waving), repeat=True)
+
+    def check_continue_waving(self) -> None:
+        """Check if we should continue waving based on pickup button state."""
+        if not self.node or not self.node.exists() or not self.is_alive():
+            return
+
+        # If pickup is no longer pressed, stop waving
+        if not self.holding_pickup or self.node.hold_node:
+            self.stop_waving()
+        else:
+            self.wave()
+
+    def wave(self) -> None:
+        """Tell our Spaz to wave."""
+        if self.node.exists() and self.is_alive():
+            # Only wave for 0.1 seconds at a time
+            cel_type = 'celebrate_r' if not self.holding_punch else 'celebrate'
+            self.node.handlemessage(cel_type, (HOLD_TO_WAVE_TIME * 1000) / 2.5)
+
+            # Create wave sound if it doesn't exist
+            if not self.wave_sound_node:
+                self.wave_sound_node = bs.newnode(
+                    'sound',
+                    owner=self.node,
+                    attrs={'sound': SpazFactory.get().waving_sound, 'volume': 0.25},
+                )
+                self.node.connectattr('position', self.wave_sound_node, 'position')
+
+    def stop_waving(self) -> None:
+        """Tell our Spaz to stop waving."""
+        if not self.node.exists():
+            return
+
+        self.waving = False
+        if self.hold_to_wave_timer:
+            self.hold_to_wave_timer = None
+        if self.wave_sound_node:
+            self.wave_sound_node.delete()
+            self.wave_sound_node = None
+        if self.wave_check_timer:
+            self.wave_check_timer = None
 
     @override
     def drop_bomb(self) -> Bomb | None:

@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+import random
 
 import bascenev1 as bs
 
 if TYPE_CHECKING:
     from typing import Any
 
-INFO_DURATION = 9.0
-NOTIF_DURATION = 8.0
+# In seconds
+INFO_DURATION = 15
+NOTIF_DURATION = 8
+NOTIF_INTERVAL = 120
 
 class InfoText(bs.Actor):
     """Text shown at the start of activity explaining server mechanics."""
@@ -19,6 +22,7 @@ class InfoText(bs.Actor):
         super().__init__()
         text = (
             "Gameplay changes:\n"
+            "- Quick-Turn\n"
             "- No Punch Grab Spam\n"
             "- Gloves are slower, but stronger\n"
             "- Shields block a portion of damage\n"
@@ -32,7 +36,7 @@ class InfoText(bs.Actor):
                 'v_attach': 'top',
                 'h_attach': 'left',
                 'h_align': 'left',
-                'position': (15, -525),
+                'position': (15, -515),
                 'scale': 0.6,
                 'text': text,
                 'color': (1, 1, 1, 1),
@@ -67,7 +71,7 @@ class WatermarkText(bs.Actor):
                 'v_attach': 'bottom',
                 'h_attach': 'right',
                 'h_align': 'right',
-                'position': (-20, -95),
+                'position': (-25, -90),
                 'scale': 0.35,
                 'big': True,
                 'text': 'NST Caramel',
@@ -90,15 +94,19 @@ class NotifText(bs.Actor):
     def __init__(
         self,
         messages: list[str | bs.Lstr] | None = None,
-        interval: float = 90.0,
+        interval: float = NOTIF_INTERVAL,
     ):
         super().__init__()
         if messages is None:
             messages = [
-                "Consider donating at buymeacoffee.com/sok05"
+                "Consider donating at buymeacoffee.com/sok05",
+                "Hold *GRAB* to wave!",
+                "When waving, you can hold *PUNCH* to celebrate!",
+                "You can freeze powerups with Ice Bomb!"
             ]
 
-        self._messages = messages
+        self._messages = list(messages)
+        random.shuffle(self._messages)
         self._interval = interval
         self._index = 0
 
@@ -161,7 +169,10 @@ class NotifText(bs.Actor):
             0.5: (0, -100),
         })
 
-        self._index = (self._index + 1) % len(self._messages)
+        self._index += 1
+        if self._index >= len(self._messages):
+            self._index = 0
+            random.shuffle(self._messages)
 
     def add_message(self, message: str | bs.Lstr) -> None:
         """Add a message to the rotation."""
