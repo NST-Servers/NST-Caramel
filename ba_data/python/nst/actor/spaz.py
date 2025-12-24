@@ -102,7 +102,7 @@ class Spaz(vanilla_spaz.Spaz):
 
         # Start the hold-to-wave timer only if it doesn't exist yet
         if not self.hold_to_wave_timer:
-            if not self.node.hold_node:
+            if not hasattr(self.node, 'hold_node') or not self.node.hold_node:
                 self.hold_to_wave_timer = bs.Timer(HOLD_TO_WAVE_TIME, bs.CallStrict(self.start_waving))
 
     @override
@@ -132,7 +132,7 @@ class Spaz(vanilla_spaz.Spaz):
             return
 
         # If pickup is no longer pressed, stop waving
-        if not self.holding_pickup or self.node.hold_node:
+        if not self.holding_pickup or (hasattr(self.node, 'hold_node') and self.node.hold_node):
             self.stop_waving()
         else:
             self.wave()

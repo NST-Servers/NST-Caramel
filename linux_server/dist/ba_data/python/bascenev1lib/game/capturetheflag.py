@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import weakref
 import logging
 from typing import TYPE_CHECKING, override
 
@@ -33,14 +32,13 @@ class CTFFlag(Flag):
     activity: CaptureTheFlagGame
 
     def __init__(self, team: Team):
-
         assert team.flagmaterial is not None
         super().__init__(
             materials=[team.flagmaterial],
             position=team.base_pos,
             color=team.color,
         )
-        self._team = weakref.ref(team)  # Avoid ref cycles.
+        self._team = team
         self.held_count = 0
         self.counter = bs.newnode(
             'text',
@@ -60,10 +58,7 @@ class CTFFlag(Flag):
     @property
     def team(self) -> Team:
         """The flag's team."""
-        team = self._team()
-        if team is None:
-            raise RuntimeError('Team no longer exists.')
-        return team
+        return self._team
 
 
 class Player(bs.Player['Team']):
@@ -78,7 +73,6 @@ class Team(bs.Team[Player]):
 
     def __init__(
         self,
-        *,
         base_pos: Sequence[float],
         base_region_material: bs.Material,
         base_region: bs.Node,
@@ -148,7 +142,6 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
         bs.BoolSetting('Epic Mode', default=False),
     ]
 
-    @override
     @classmethod
     def supports_session_type(cls, sessiontype: type[bs.Session]) -> bool:
         return issubclass(sessiontype, bs.DualTeamSession)
@@ -156,8 +149,6 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
     @override
     @classmethod
     def get_supported_maps(cls, sessiontype: type[bs.Session]) -> list[str]:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
-
         assert bs.app.classic is not None
         return bs.app.classic.getmaps('team_flag')
 
@@ -180,29 +171,23 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
 
         # Base class overrides.
         self.slow_motion = self._epic_mode
+        # Base class overrides.
+        self.slow_motion = self._epic_mode
         self.default_music = (
             bs.MusicType.EPIC if self._epic_mode else bs.MusicType.FLAG_CATCHER
         )
 
-    @override
     def get_instance_description(self) -> str | Sequence:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
-
         if self._score_to_win == 1:
             return 'Steal the enemy flag.'
         return 'Steal the enemy flag ${ARG1} times.', self._score_to_win
 
-    @override
     def get_instance_description_short(self) -> str | Sequence:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
-
         if self._score_to_win == 1:
             return 'return 1 flag'
         return 'return ${ARG1} flags', self._score_to_win
 
-    @override
     def create_team(self, sessionteam: bs.SessionTeam) -> Team:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
 
         # Create our team instance and its initial values.
 
@@ -292,16 +277,12 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
 
         return team
 
-    @override
     def on_team_join(self, team: Team) -> None:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
-
         # Can't do this in create_team because the team's color/etc. have
         # not been wired up yet at that point.
         self._spawn_flag_for_team(team)
         self._update_scoreboard()
 
-    @override
     def on_begin(self) -> None:
         super().on_begin()
         self.setup_standard_time_limit(self._time_limit)
@@ -343,7 +324,11 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
                 # Award points to whoever was carrying the enemy flag.
                 player = flag.last_player_to_hold
                 if player and player.team is team:
+                    assert self.stats
                     self.stats.player_scored(player, 50, big_message=True)
+                    # Display a message showing who scored
+                    if flag.last_player_to_hold:
+                        flag.set_score_text(f"+50")
 
                 # Update score and reset flags.
                 self._score(team)
@@ -430,10 +415,7 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
         if team.score >= self._score_to_win:
             self.end_game()
 
-    @override
     def end_game(self) -> None:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
-
         results = bs.GameResults()
         for team in self.teams:
             results.set_team_score(team, team.score)
@@ -449,6 +431,7 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
             return
 
         if flag.team is team:
+
             # Check times here to prevent too much flashing.
             if (
                 team.last_flag_leave_time is None
@@ -510,6 +493,9 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
         except bs.NotFoundError:
             return
 
+        if not spaz.is_alive():
+            return
+
         player = spaz.getplayer(Player, True)
 
         if player:
@@ -534,7 +520,7 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
                 if team.flag_return_touches == 1:
                     team.touch_return_timer = bs.Timer(
                         0.1,
-                        call=bs.CallStrict(self._touch_return_update, team),
+                        call=bs.CallPartial(self._touch_return_update, team),
                         repeat=True,
                     )
                     team.touch_return_timer_ticking = None
@@ -544,38 +530,33 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
                     team.touch_return_timer = None
                     team.touch_return_timer_ticking = None
             if team.flag_return_touches < 0:
-                logging.error('CTF flag_return_touches < 0', stack_info=True)
+                print('CTF flag_return_touches < 0')
 
-    def _handle_death_flag_capture(self, player: Player) -> None:
-        """Handles flag values when a player dies or leaves the game."""
+    def _handle_death_and_flags_hypothetical_problem(self, player: Player) -> None:
+        """
+        Handles flag values when a player dies or leaves the game.
+        Nice and simple fix a long unfixed issue!
+        """
         # Don't do anything if the player hasn't touched the flag at all.
-        if not player.touching_own_flag:
-            return
+        if not player.touching_own_flag: return
 
         team = player.team
+        # For each "point" our player has touched the flag (Could be multiple),
+        # deduct one from both our player and the flag's return touches variable.
+        for x in range(player.touching_own_flag):
 
-        # For each "point" our player has touched theflag (Could be
-        # multiple), deduct one from both our player and the flag's
-        # return touches variable.
-        for _ in range(player.touching_own_flag):
             # Deduct
             player.touching_own_flag -= 1
+            team.flag_return_touches -= 1
 
-            # (This was only incremented if we have non-zero
-            # return-times).
-            if float(self.flag_touch_return_time) > 0.0:
-                team.flag_return_touches -= 1
-                # Update our flag's timer accordingly
-                # (Prevents immediate resets in case
-                # there might be more people touching it).
-                if team.flag_return_touches == 0:
-                    team.touch_return_timer = None
-                    team.touch_return_timer_ticking = None
-                # Safety check, just to be sure!
-                if team.flag_return_touches < 0:
-                    logging.error(
-                        'CTF flag_return_touches < 0', stack_info=True
-                    )
+            # Update our flag's timer accordingly (Prevents immediate resets in case there might be more people touching it)
+            if team.flag_return_touches == 0:
+                team.touch_return_timer = None
+                team.touch_return_timer_ticking = None
+            # Safety check taken from self._handle_touching_own_flag, just to be sure!
+            if team.flag_return_touches < 0:
+                print('CTF flag_return_touches < 0')
+
 
     def _flash_base(self, team: Team, length: float = 2.0) -> None:
         light = bs.newnode(
@@ -590,7 +571,6 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
         bs.animate(light, 'intensity', {0.0: 0, 0.25: 2.0, 0.5: 0}, loop=True)
         bs.timer(length, light.delete)
 
-    @override
     def spawn_player_spaz(
         self,
         player: Player,
@@ -635,28 +615,24 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
                 team, team.score, self._score_to_win
             )
 
-    @override
     def handlemessage(self, msg: Any) -> Any:
-        # (Pylint Bug?) pylint: disable=missing-function-docstring
-
         if isinstance(msg, bs.PlayerDiedMessage):
             super().handlemessage(msg)  # Augment standard behavior.
-            self._handle_death_flag_capture(msg.getplayer(Player))
+            self._handle_death_and_flags_hypothetical_problem(msg.getplayer(Player)) # Check if we have "flag contact points"
             self.respawn_player(msg.getplayer(Player))
 
         elif isinstance(msg, FlagDiedMessage):
             assert isinstance(msg.flag, CTFFlag)
-            bs.timer(
-                0.1, bs.CallStrict(self._spawn_flag_for_team, msg.flag.team)
-            )
+            bs.timer(0.1, bs.CallPartial(self._spawn_flag_for_team, msg.flag.team))
 
         elif isinstance(msg, FlagPickedUpMessage):
             # Store the last player to hold the flag for scoring purposes.
             assert isinstance(msg.flag, CTFFlag)
             try:
-                msg.flag.last_player_to_hold = msg.node.getdelegate(
-                    PlayerSpaz, True
-                ).getplayer(Player, True)
+                player = msg.node.getdelegate(PlayerSpaz, True).getplayer(Player, True)
+                # Only update the last player if no one is currently holding it
+                if msg.flag.held_count == 0:
+                    msg.flag.last_player_to_hold = player
             except bs.NotFoundError:
                 pass
 
@@ -664,14 +640,13 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
             msg.flag.reset_return_times()
 
         elif isinstance(msg, FlagDroppedMessage):
-            # Store the last player to hold the flag for scoring purposes.
+            # We don't reset the last_player_to_hold when flag is dropped
+            # This way the last carrier still gets credit if the flag is delivered
             assert isinstance(msg.flag, CTFFlag)
             msg.flag.held_count -= 1
 
         else:
             super().handlemessage(msg)
 
-    @override
     def on_player_leave(self, player: Player) -> None:
-        """Prevents leaving players from capturing their flag."""
-        self._handle_death_flag_capture(player)
+        self._handle_death_and_flags_hypothetical_problem(player) # Check if we had "flag contact points" here too
