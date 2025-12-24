@@ -1,7 +1,7 @@
 # Released under the MIT License. See LICENSE for details.
 #
 """
-One-o-One V3
+One-o-One 3.1
 ----------------
 A gamemode where players are put in a queue to fight 1v1.
 First player to get a set number of kills wins.
@@ -703,6 +703,9 @@ class OneoOneGame(bs.TeamGameActivity[Player, Team]):
         # Apply start items
         if self._start_shield:
             actor.equip_shields()
+            # We'll epicly set shield color to name color
+            if actor.shield:
+                actor.shield.color = player.color
         if self._start_gloves:
             actor.equip_boxing_gloves()
         if self._start_impact_bombs:
@@ -874,11 +877,14 @@ class OneoOneGame(bs.TeamGameActivity[Player, Team]):
                         float(new_hp) / float(max_hp)
                     )
 
-                    # Popup
-                    if self._killstreaks and killer.actor:
-                        popup_text = streak_text
-                        if health_restored_percent > 0:
-                            popup_text += f'\n+{health_restored_percent:.0f}% HP'
+                # Popup
+                if killer.actor:
+                    popup_text = streak_text if self._killstreaks else ''
+                    if health_restored_percent > 0:
+                        if popup_text:
+                            popup_text += '\n'
+                        popup_text += f'+{health_restored_percent:.0f}% HP'
+                    if popup_text:
                         PopupText(
                             popup_text,
                             color=killer.actor.node.name_color,
