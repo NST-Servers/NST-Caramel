@@ -538,9 +538,13 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
         Nice and simple fix a long unfixed issue!
         """
         # Don't do anything if the player hasn't touched the flag at all.
-        if not player.touching_own_flag: return
+        if not player.touching_own_flag:
+            return
 
-        team = player.team
+        try:
+            team = player.team
+        except bs.NotFoundError:
+            return
         # For each "point" our player has touched the flag (Could be multiple),
         # deduct one from both our player and the flag's return touches variable.
         for x in range(player.touching_own_flag):
@@ -649,4 +653,5 @@ class CaptureTheFlagGame(bs.TeamGameActivity[Player, Team]):
             super().handlemessage(msg)
 
     def on_player_leave(self, player: Player) -> None:
+        super().on_player_leave(player)
         self._handle_death_and_flags_hypothetical_problem(player) # Check if we had "flag contact points" here too
