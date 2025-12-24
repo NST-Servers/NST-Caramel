@@ -165,7 +165,7 @@ def show_damage_count(
     damage: str,
     position: Sequence[float],
     direction: Sequence[float],
-    dead: bool = False,
+    color: Sequence[float]
 ) -> None:
     """Pop up a damage count at a position in space."""
     # pylint: disable=too-many-locals
@@ -185,7 +185,7 @@ def show_damage_count(
             'h_align': 'center',
             'flatness': 1.0,
             'shadow': 1.0 if do_big else 0.7,
-            'color': (0.2, 0.2, 0.2, 1) if dead else (1, 0.25, 0.25, 1),
+            'color': color,
             'scale': 0.015 if do_big else 0.01,
         },
     )

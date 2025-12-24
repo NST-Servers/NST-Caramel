@@ -28,6 +28,7 @@ class PopupText(bs.Actor):
         random_offset: float = 0.5,
         offset: Sequence[float] = (0.0, 0.0, 0.0),
         scale: float = 1.0,
+        lifespan: float = 1.5
     ):
         """Instantiate with given values.
 
@@ -56,7 +57,7 @@ class PopupText(bs.Actor):
             delegate=self,
         )
 
-        lifespan = 1.5
+        lifespan = lifespan
 
         # scale up
         bs.animate(

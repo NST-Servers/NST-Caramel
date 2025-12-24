@@ -15,6 +15,7 @@ from bascenev1lib.actor.bomb import Bomb, Blast
 from bascenev1lib.actor.powerupbox import PowerupBoxFactory, PowerupBox
 from bascenev1lib.actor.spazfactory import SpazFactory
 from bascenev1lib.gameutils import SharedObjects
+from bascenev1lib.actor.popuptext import PopupText
 
 if TYPE_CHECKING:
     from typing import Any, Sequence, Callable
@@ -703,6 +704,14 @@ class Spaz(bs.Actor):
         else:
             self.shield_decay_timer = None
 
+    def _pause(self, s: bool) -> None:
+        """Pause or unpause."""
+        activity = bs.get_foreground_host_activity()
+        if activity:
+            globs = activity.globalsnode
+            if not globs.paused == s:
+                globs.paused = s
+
     @override
     def handlemessage(self, msg: Any) -> Any:
         # pylint: disable=too-many-return-statements
@@ -1091,11 +1100,20 @@ class Spaz(bs.Actor):
                 # If damage was significant, lets show it.
                 if damage >= 350:
                     assert msg.force_direction is not None
+                    # Cyan for frozen
+                    if self.frozen:
+                        color = (0, 1, 0.796)
+                    # Gray for dead
+                    elif self._dead:
+                        color = (0.58, 0.58, 0.58)
+                    # Red for everything else
+                    else:
+                        color = (1, 0.25, 0.25, 1)
                     bs.show_damage_count(
                         '-' + str(int(damage / 10)) + '%',
                         msg.pos,
                         msg.force_direction,
-                        self._dead,
+                        color
                     )
 
                 # Let's always add in a super-punch sound with boxing
@@ -1105,6 +1123,75 @@ class Spaz(bs.Actor):
                         1.0,
                         position=self.node.position,
                     )
+
+                # WRECK!
+                if damage > 1000 and msg.hit_subtype == 'super_punch':
+                    self._pause(True)
+                    bs.apptimer(0.13, bs.CallPartial(self._pause, False))
+
+                    # Play our sounds
+                    factory = SpazFactory.get()
+                    sound = factory.punch_sound_stronger
+                    sound.play(1.75, position=self.node.position)
+                    sound = factory.woo_sound
+                    sound.play(1.75, position=self.node.position)
+                    sound = factory.orchestra_hit_sound
+                    sound.play(1.75, position=self.node.position)
+
+                    bs.emitfx(
+                        position=msg.pos,
+                        chunk_type='spark',
+                        velocity=(
+                            msg.force_direction[0] * 1.3,
+                            msg.force_direction[1] * 1.3 + 5.0,
+                            msg.force_direction[2] * 1.3,
+                        ),
+                        count=15,
+                        scale=0.9,
+                        spread=0.28,
+                    )
+
+                    bs.emitfx(
+                        position=self.node.position,
+                        emit_type='distortion',
+                        spread=1.0,
+                    )
+
+                    # Light
+                    light = bs.newnode(
+                        'light',
+                        attrs={
+                            'position': self.node.position,
+                            'radius': 0.3,
+                            'color': (1, 0, 0),
+                            'volume_intensity_scale': 1.0,
+                        },
+                    )
+
+                    # Animation and deletion
+                    bs.animate(light, 'intensity', {0: 0.0, 0.15: 1, 0.22: 1.15, 0.55: 0})
+                    bs.animate(light, 'radius', {0: 0.0, 0.15: 0.3, 0.22: 0.4, 0.55: 0})
+                    bs.timer(0.5, light.delete)
+
+                    # Popup
+                    PopupText(
+                        text="WRECK!",
+                        color=(1, 0.176, 0.176),
+                        scale=1.5,
+                        position=self.node.position,
+                        lifespan=1.0
+                    ).autoretain()
+
+                    if not self.is_alive():
+                        self.shatter(extreme=True)
+                        xforce = -115
+                        yforce = 15
+                        vel = [-v for v in self.node.velocity]
+
+                        for _ in range(15):
+                            self.node.handlemessage('impulse', self.node.position[0], self.node.position[1], self.node.position[2], 0, 0, 0, yforce, 0.05, 0, 0, 0, 20*400, 0)
+                            self.node.handlemessage('impulse', self.node.position[0], self.node.position[1], self.node.position[2], 0, 0, 0, xforce, 0.05, 0, 0, vel[0]*4, 0, vel[2]*4)
+
                 if damage >= 500:
                     sounds = SpazFactory.get().punch_sound_strong
                     sound = sounds[random.randrange(len(sounds))]
@@ -1218,6 +1305,52 @@ class Spaz(bs.Actor):
                 elif self.hitpoints <= 0:
                     self.node.handlemessage(
                         bs.DieMessage(how=bs.DeathType.IMPACT)
+                    )
+                
+                # Cold-Blooded!
+                if self.frozen and damage > 400:
+                    # Pause and unpause for feels
+                    self._pause(True)
+                    bs.apptimer(0.09, lambda: self._pause(False))
+
+                    # Sound
+                    sound = SpazFactory.get().orchestra_hit2_sound
+                    vol = 1.15
+                    sound.play(1.75, position=self.node.position)
+
+                    # Popup
+                    PopupText(
+                        text="Cold-Blooded!",
+                        color=(0, 1, 0.796),
+                        scale=1.5,
+                        position=self.node.position,
+                        lifespan=1.0
+                    ).autoretain()
+
+                    # Cyan light
+                    light = bs.newnode(
+                        'light',
+                        attrs={
+                            'position': self.node.position,
+                            'radius': 0.5,
+                            'color': (0, 1, 1),
+                            'volume_intensity_scale': 1.0,
+                        },
+                    )
+                    bs.animate(light, 'intensity', {0: 0, 0.1: 1, 0.15: 0})
+                    bs.timer(0.15, light.delete)
+
+                    bs.emitfx(
+                        position=msg.pos,
+                        chunk_type='ice',
+                        velocity=(
+                            msg.force_direction[0] * 1.3,
+                            msg.force_direction[1] * 1.3 + 5.0,
+                            msg.force_direction[2] * 1.3,
+                        ),
+                        count=15,
+                        scale=0.9,
+                        spread=0.28,
                     )
 
             # If we're dead, take a look at the smoothed damage value
