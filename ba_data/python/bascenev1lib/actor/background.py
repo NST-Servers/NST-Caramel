@@ -42,7 +42,7 @@ class Background(bs.Actor):
                     'texture': bs.gettexture('bg'),
                     'tilt_translate': -0.3,
                     'has_alpha_channel': False,
-                    'color': (1, 1, 1),
+                    'color': (1, 0.573, 0.251),
                 },
             )
             if not start_faded:

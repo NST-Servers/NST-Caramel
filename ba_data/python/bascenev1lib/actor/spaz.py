@@ -1592,7 +1592,7 @@ class Spaz(bs.Actor):
 
     def curse_explode(self, source_player: bs.Player | None = None) -> None:
         """Explode the poor spaz spectacularly."""
-        if self._cursed and self.node:
+        if self.node:
             self.shatter(extreme=True)
             self.handlemessage(bs.DieMessage())
             activity = self._activity()

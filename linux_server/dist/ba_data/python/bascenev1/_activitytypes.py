@@ -92,7 +92,7 @@ class JoinActivity(Activity[EmptyPlayer, EmptyTeam]):
 
         super().on_transition_in()
         self._background = Background(
-            fade_time=0.5, start_faded=True, show_logo=True
+            fade_time=0.5, start_faded=True, show_logo=False
         )
         self._tips_text = TipsText()
         setmusic(MusicType.CHAR_SELECT)
@@ -182,7 +182,7 @@ class ScoreScreenActivity(Activity[EmptyPlayer, EmptyTeam]):
 
         super().on_transition_in()
         self._background = Background(
-            fade_time=0.5, start_faded=False, show_logo=True
+            fade_time=0.5, start_faded=False, show_logo=False
         )
         if self._default_show_tips:
             self._tips_text = TipsText()
